@@ -1,7 +1,9 @@
 package com.example.device_service.messaging;
 
 import com.example.device_service.config.RabbitMQConfig;
+import com.example.device_service.entity.User;
 import com.example.device_service.messaging.dto.UserSyncDTO;
+import com.example.device_service.repository.UserRepository;
 import com.example.device_service.service.DeviceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,9 +15,11 @@ public class UserSyncConsumer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UserSyncConsumer.class);
     private final DeviceService deviceService;
+    private final UserRepository userRepository;
 
-    public UserSyncConsumer(DeviceService deviceService) {
+    public UserSyncConsumer(DeviceService deviceService, UserRepository userRepository) {
         this.deviceService = deviceService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -40,6 +44,8 @@ public class UserSyncConsumer {
      */
      @RabbitListener(queues = RabbitMQConfig.DEVICE_USER_CREATED_QUEUE)
     public void handleUserCreatedEvent(UserSyncDTO event) {
-        LOGGER.info("Received User CREATED Sync Event for userId: {}. No database action needed.", event.getUserId());
+        User newUser = new User(event.getUserId(), event.getUsername());
+        userRepository.save(newUser);
+        LOGGER.info("Received User CREATED Sync Event for userId: {}.", event.getUserId());
     }
 }

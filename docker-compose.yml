@@ -201,7 +201,7 @@ services:
     container_name: device-simulator
     environment:
       - RABBITMQ_HOST=rabbitmq
-      - DEVICE_ID=1 # Set the Device ID this simulator will use
+      - DEVICE_ID=5 # Set the Device ID this simulator will use
       - PYTHONUNBUFFERED=1
     depends_on:
       - rabbitmq

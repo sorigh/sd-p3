@@ -7,7 +7,7 @@ import random
 
 # --- CONFIGURATION (from Docker environment variables) ---
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
-DEVICE_ID = os.getenv('DEVICE_ID', '1') # The ID of the device this simulator mimics
+DEVICE_ID = os.getenv('DEVICE_ID', '5') # The ID of the device this simulator mimics
 DATA_QUEUE = 'device-data-queue'
 INTERVAL_SECONDS = 1 * 60 # 1 minute
 
