@@ -1,0 +1,240 @@
+version: "3.9"
+
+services:
+  # 🗄️ PostgreSQL for User Service
+  postgres-user:
+    image: postgres:16
+    container_name: postgres-user
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: user_db
+    volumes:
+      - postgres_user_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"   # Host port 5433
+    networks:
+      - app_net
+
+  # 🗄️ PostgreSQL for Device Service
+  postgres-device:
+    image: postgres:16
+    container_name: postgres-device
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: device_db
+    volumes:
+      - postgres_device_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"   # Host port 5434
+    networks:
+      - app_net
+
+  # 🗄️ PostgreSQL for Auth Service
+  postgres-auth:
+    image: postgres:16
+    container_name: postgres-auth
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: auth_db
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"  
+    networks:
+      - app_net
+
+  # 🗄️ PostgreSQL for Monitoring Service
+  postgres-monitoring:
+    image: postgres:16
+    container_name: postgres-monitoring
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: monitoring_db
+    volumes:
+      - postgres_monitoring_data:/var/lib/postgresql/data
+    ports:
+      - "5436:5432"  
+    networks:
+      - app_net
+
+  # 🚦 Traefik Gateway
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8088:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - app_net
+
+  # 👥 User Service
+  user-service:
+    build: ./backend/user-service
+    container_name: user-service
+    expose:
+      - "8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_IP=postgres-user
+      - DB_PORT=5432
+      - DB_DBNAME=user_db
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - PORT=8080
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.user.rule=PathPrefix(`/api/user`)"
+      - "traefik.http.services.user.loadbalancer.server.port=8080"
+    networks:
+      - app_net
+
+  # 💡 Device Service
+  device-service:
+    build: ./backend/device-service
+    container_name: device-service
+    expose:
+      - "8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_IP=postgres-device
+      - DB_PORT=5432
+      - DB_DBNAME=device_db
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - PORT=8081
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.device.rule=PathPrefix(`/api/device`)"
+      - "traefik.http.services.device.loadbalancer.server.port=8081"
+      - "traefik.http.routers.my-device-service.rule=PathPrefix(`/api/my-devices`)"
+      - "traefik.http.services.device.loadbalancer.server.port=8081"
+    networks:
+      - app_net
+    depends_on: 
+      - postgres-device
+      - rabbitmq
+
+  # 🔐 Auth Service
+  auth-service:
+    build: ./backend/auth-service
+    container_name: auth-service
+    expose:
+      - "8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_IP=postgres-auth
+      - DB_PORT=5432
+      - DB_DBNAME=auth_db
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - PORT=8083
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`)"
+      - "traefik.http.services.auth.loadbalancer.server.port=8083"
+    networks:
+      - app_net
+
+  # 📊 Monitoring Service:
+  monitoring-service:
+    build: ./backend/monitoring-service
+    container_name: monitoring-service
+    expose:
+      - "8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_IP=postgres-monitoring
+      - DB_PORT=5432
+      - DB_DBNAME=monitoring_db
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - PORT=8082
+      # RabbitMQ Config (Used internally by the service)
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+    labels:
+      - "traefik.enable=true" # <--- Schimbat la TRUE
+      - "traefik.http.routers.monitoring.rule=PathPrefix(`/api/monitoring`)"
+      - "traefik.http.services.monitoring.loadbalancer.server.port=8082"
+    depends_on:
+      - postgres-monitoring
+      - rabbitmq
+    networks:
+      - app_net
+
+  # 🐇 RabbitMQ Message Broker (New)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine 
+    container_name: rabbitmq
+    ports:
+      - "5672:5672" # Standard AMQP port 
+      - "15672:15672" # Management dashboard (http://localhost:15672)
+    networks:
+      - app_net
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest 
+
+  device-simulator:
+    build: ./device-simulator
+    container_name: device-simulator
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - DEVICE_ID=1 # Set the Device ID this simulator will use
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - rabbitmq
+    networks:
+      - app_net
+  # 🌐 Frontend
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    expose:
+      - "3000"
+    stdin_open: true
+    tty: true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    networks:
+      - app_net
+
+# Network Definition
+networks:
+  app_net:
+    driver: bridge
+
+# Volumes for persistent DB data
+volumes:
+  postgres_user_data:
+    driver: local
+  postgres_device_data:
+    driver: local
+  postgres_auth_data:
+    driver: local
+  postgres_monitoring_data:
+    driver: local
+    
