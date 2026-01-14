@@ -1,0 +1,32 @@
+# Folosim o imagine oficială de Java 21 (Eclipse Temurin este recomandată)
+FROM eclipse-temurin:21-jdk-alpine
+
+# Setăm directorul de lucru în container
+WORKDIR /app
+
+# Copiem wrapper-ul Maven și fișierul pom.xml pentru a descărca dependențele
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
+
+# Ne asigurăm că mvnw are permisiuni de execuție
+RUN chmod +x mvnw
+
+# Descărcăm dependențele (pentru a profita de cache-ul Docker)
+# Folosim "go-offline" pentru a nu descărca internetul la fiecare build
+RUN ./mvnw dependency:go-offline
+
+# Copiem sursele aplicației
+COPY src src
+
+# Compilăm aplicația, sărind peste teste pentru viteză
+RUN ./mvnw package -DskipTests
+
+# Copiem jar-ul generat într-un nume standard
+RUN cp target/*.jar app.jar
+
+# Expunem portul pe care rulează Spring Boot (8084 conform application.properties)
+EXPOSE 8084
+
+# Comanda de start
+ENTRYPOINT ["java","-jar","app.jar"]

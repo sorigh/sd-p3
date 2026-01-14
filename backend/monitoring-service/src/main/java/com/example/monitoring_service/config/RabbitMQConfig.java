@@ -4,11 +4,15 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+
 
 @Configuration
 public class RabbitMQConfig {
@@ -18,6 +22,8 @@ public class RabbitMQConfig {
     @Value("${monitoring.queue.sync}")
     private String syncQueueName;
     
+    @Value("${monitoring.queue.notification}")
+    private String notificationQueueName;
 
     public static final String SYNC_EXCHANGE = "sync_exchange"; 
     public static final String DEVICE_CREATED_KEY = "device.created";
@@ -33,6 +39,8 @@ public class RabbitMQConfig {
     public static final String USER_DELETED_KEY = "user.deleted";
     public static final String USER_DELETED_QUEUE = "monitoring_user_deleted_queue";
 
+    public static final String NOTIFICATION_QUEUE = "monitoring_notification_queue";
+
     // Defines the queue for device data messages
     @Bean
     public Queue deviceDataQueue() {
@@ -44,6 +52,13 @@ public class RabbitMQConfig {
     public Queue syncQueue() {
         return new Queue(syncQueueName, true); 
     }
+
+    @Bean
+    public Queue notificationQueue() {
+        // true = durable
+        return new Queue(notificationQueueName, true);
+    }
+
     
     // Configures Spring to automatically convert JSON to Java objects
     @Bean
@@ -51,6 +66,7 @@ public class RabbitMQConfig {
         return new Jackson2JsonMessageConverter();
     }
 
+    
 
     // in all microservices
     @Bean
@@ -93,7 +109,7 @@ public class RabbitMQConfig {
         return new Queue(DEVICE_DELETED_QUEUE, true);
     }
 
-    // [NEW] Binding for Device Deletion
+    // Binding for Device Deletion
     @Bean
     public Binding deviceDeletedBinding(Queue deviceDeletedQueue, DirectExchange syncExchange) {
         return BindingBuilder.bind(deviceDeletedQueue)
@@ -101,18 +117,25 @@ public class RabbitMQConfig {
                 .with(DEVICE_DELETED_KEY);
     }
 
-    // [NEW] Queue for User Deletion
+    // Queue for User Deletion
     @Bean
     public Queue userDeletedQueue() {
         return new Queue(USER_DELETED_QUEUE, true); 
     }
 
-    // [NEW] Binding for User Deletion
+    // Binding for User Deletion
     @Bean
     public Binding userDeletedBinding(Queue userDeletedQueue, DirectExchange syncExchange) {
         return BindingBuilder.bind(userDeletedQueue)
                 .to(syncExchange)
                 .with(USER_DELETED_KEY);
+    }
+
+    @Bean
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
+        final RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
+        rabbitTemplate.setMessageConverter(jsonMessageConverter());
+        return rabbitTemplate;
     }
 
 }

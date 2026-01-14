@@ -24,13 +24,13 @@ public class DeviceSyncPublisher {
     }
 
     public void publishDeviceCreated(Device device) {
-        DeviceSyncDTO dto = new DeviceSyncDTO(device.getId(), device.getName());
+        DeviceSyncDTO dto = new DeviceSyncDTO(device.getId(), device.getName(), device.getMaximumHourlyEnergyConsumption());
         rabbitTemplate.convertAndSend(SYNC_EXCHANGE, DEVICE_CREATED_KEY, dto);
         LOGGER.info("Published Device CREATED event for deviceId: {}", device.getId());
     }
     public void publishDeviceDeleted(Long deviceId) {
         // only need the ID for deletion, name can be null
-        DeviceSyncDTO dto = new DeviceSyncDTO(deviceId, null);
+        DeviceSyncDTO dto = new DeviceSyncDTO(deviceId, null, null);
         rabbitTemplate.convertAndSend(SYNC_EXCHANGE, DEVICE_DELETED_KEY, dto);
         LOGGER.info("Published Device DELETED event for deviceId: {}", deviceId);
     }

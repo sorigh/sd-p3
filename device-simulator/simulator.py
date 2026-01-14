@@ -1,97 +1,101 @@
 import pika
 import json
-import time
-import datetime
-import os
+import bisect
 import random
+import time
+from datetime import datetime
 
-# --- CONFIGURATION (from Docker environment variables) ---
-RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
-DEVICE_ID = os.getenv('DEVICE_ID', '5') # The ID of the device this simulator mimics
-DATA_QUEUE = 'device-data-queue'
-INTERVAL_SECONDS = 1 * 60 # 1 minute
+# --- CONFIGURATION CONSTANTS ---
+RABBITMQ_HOST = 'localhost'
+QUEUE_NAME = 'device-data-queue' # Must match 'monitoring.queue.data' in Spring
 
-# --- SIMULATION LOGIC ---
+# 🛠️ EDIT THESE VALUES 🛠️
+DEVICE_ID = "1"              # The ID of the device to simulate
+DATE_STRING = "10-01-2026"   # The date for the data (Format: DD-MM-YYYY)
 
-# Base consumption rate (kWh for 10 minutes)
-BASE_LOAD_MIN = 0.1 
-BASE_LOAD_MAX = 0.5
+# --- CONSUMPTION LOGIC (Approved by Teacher) ---
+# (Index, Consumption_kW)
+KEY_POINTS = [
+    (0, 0.3),    # 00:00 - Low base load
+    (42, 1.5),   # 07:00 - Morning peak
+    (54, 1.2),   # 09:00 - Morning drop
+    (72, 0.8),   # 12:00 - Daytime lull
+    (102, 1.0),  # 17:00 - People returning home
+    (114, 2.2),  # 19:00 - Evening peak
+    (126, 1.8),  # 21:00 - Peak drops
+    (138, 0.5),  # 23:00 - Winding down
+    (144, 0.3)   # 24:00 - Back to base
+]
 
-def get_consumption_multiplier():
-    """Adjusts consumption based on the hour to simulate day/night cycles."""
-    current_hour = datetime.datetime.now().hour
+breakpoints = [x[0] for x in KEY_POINTS[1:]] # Extract indices for bisect
+
+def get_current_consumption(index):
+    # Find the interval this index falls into using bisect
+    idx = bisect.bisect_right(breakpoints, index)
+    base = KEY_POINTS[idx][1]
     
-    # Lower consumption during night (1 AM - 7 AM)
-    if 1 <= current_hour <= 7:
-        return 0.5 + random.uniform(-0.1, 0.1)  # Low period
+    # Add randomness (+/- 15%)
+    noise = random.uniform(-0.15, 0.15)
+    value = base + (base * noise) + 100000
     
-    # Peak consumption during evening (5 PM - 10 PM)
-    elif 17 <= current_hour <= 22:
-        return 1.8 + random.uniform(-0.2, 0.2)  # Peak period
-    
-    # Moderate consumption during day
-    else:
-        return 1.0 + random.uniform(-0.3, 0.3) 
-
-def generate_measurement():
-    """Generates a synthetic measurement value."""
-    multiplier = get_consumption_multiplier()
-    base_consumption = random.uniform(BASE_LOAD_MIN, BASE_LOAD_MAX)
-    
-    # measurement_value represents consumption over a 10-minute interval
-    value = round(base_consumption * multiplier, 3) 
-    
-    # The message structure required: <timestamp, device id, measurement_value>
-    timestamp = datetime.datetime.now().isoformat()
-    
-    message = {
-        "timestamp": timestamp,
-        "device_id": int(DEVICE_ID), # Ensure ID is integer type
-        "measurement_value": value
-    }
-    
-    return message
-
-# --- RABBITMQ PUBLISHER ---
-
-def publish_data():
-    """Connects to RabbitMQ and publishes the measurement."""
-    try:
-        # 1. Establish connection and channel
-        connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=RABBITMQ_HOST))
-        channel = connection.channel()
-        
-        # 2. Declare the queue (will create it if it doesn't exist)
-        channel.queue_declare(queue=DATA_QUEUE, durable=True)
-        
-        # 3. Generate and format the message
-        measurement = generate_measurement()
-        json_body = json.dumps(measurement)
-        
-        # 4. Publish the message
-        channel.basic_publish(
-            exchange='',  # Use default exchange for direct routing to queue
-            routing_key=DATA_QUEUE,
-            body=json_body
-        )
-        
-        print(f"[{measurement['timestamp']}] 🟢 Sent to Device {DEVICE_ID}: {json_body}")
-        
-    except pika.exceptions.AMQPConnectionError as e:
-        print(f"❌ Connection error: Could not connect to RabbitMQ at {RABBITMQ_HOST}. Retrying...")
-    finally:
-        if 'connection' in locals() and connection.is_open:
-            connection.close()
-
+    return max(0, round(value, 2))
 
 def main():
-    print(f"Starting Device Simulator for Device ID: {DEVICE_ID}. Interval: {INTERVAL_SECONDS}s.")
-    while True:
-        publish_data()
-        time.sleep(INTERVAL_SECONDS) # Wait for 10 minutes
+    print(f"--- Starting One-Shot Simulation ---")
+    print(f"Target: Device {DEVICE_ID} | Date: {DATE_STRING}")
+
+    # 1. Setup Connection
+    try:
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
+        channel = connection.channel()
+        channel.queue_declare(queue=QUEUE_NAME, durable=True)
+    except Exception as e:
+        print(f"❌ Error connecting to RabbitMQ at {RABBITMQ_HOST}: {e}")
+        return
+
+    # 2. Parse Date Constant
+    try:
+        parsed_date = datetime.strptime(DATE_STRING.strip(), "%d-%m-%Y")
+    except ValueError:
+        print(f"❌ Invalid date format in constant: '{DATE_STRING}'. Expected DD-MM-YYYY.")
+        return
+
+    # 3. Generate 144 points (every 10 mins for 24h)
+    print("🚀 Sending data points...")
+    
+    for index in range(144):
+        total_minutes = index * 10
+        hour = total_minutes // 60
+        minute = total_minutes % 60
+        
+        # Create timestamp for specific time of that day
+        timestamp = parsed_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        
+        consumption = get_current_consumption(index)
+        
+        # Construct JSON payload matching the approved format
+        data = {
+            "timestamp": timestamp.isoformat(),
+            "device": {
+                "id": DEVICE_ID
+            },
+            "consumption": consumption
+        }
+        
+        message = json.dumps(data)
+        
+        channel.basic_publish(
+            exchange='',
+            routing_key=QUEUE_NAME,
+            body=message
+        )
+        
+        # Print progress (optional: remove time.sleep for instant execution)
+        print(f"[{timestamp.time()}] Sent {consumption} kW")
+        time.sleep(0.05) 
+
+    connection.close()
+    print(f"✅ Completed. 144 measurements sent for Device {DEVICE_ID}.")
 
 if __name__ == '__main__':
-    # Give RabbitMQ time to start up
-    time.sleep(15) 
     main()

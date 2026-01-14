@@ -10,4 +10,5 @@ import lombok.NoArgsConstructor;
 public class DeviceSyncDTO {
     private Long deviceId;
     private String name;
+    private Double maxHourlyConsumption;
 }

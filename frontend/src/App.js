@@ -12,6 +12,15 @@ import MyDevicesPage from "./device/components/my-devices-page";
 import "bootstrap/dist/css/bootstrap.min.css";
 import DeviceConsumptionPage from "./device/components/device-consumption-page";
 
+
+// 1. Importăm containerul pentru pop-up-uri (vizual)
+import { ToastContainer } from 'react-toastify';
+// 2. Importăm stilurile obligatorii pentru pop-up-uri
+import 'react-toastify/dist/ReactToastify.css';
+
+// 3. Importăm componenta invizibilă care ascultă WebSocket-ul
+import WebSocketNotification from './components/WebSocketNotification';
+
 function ProtectedRoute({ children, requiredRole }) {
   const { user, loading } = useContext(AuthContext);
 
@@ -28,6 +37,24 @@ function App() {
 
   return (
     <Router>
+      
+      <WebSocketNotification />
+      
+      
+      <ToastContainer 
+            // popups
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="colored"
+      />
+
       {isAuthenticated && <Navbar />}  {/* Navbar appears only when logged in */}
 
       <Routes>

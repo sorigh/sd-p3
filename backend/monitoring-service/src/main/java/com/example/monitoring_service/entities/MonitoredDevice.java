@@ -16,4 +16,7 @@ public class MonitoredDevice {
 
     @Column(name = "name")
     private String name;
+
+    @Column(name = "max_hourly_consumption")
+    private Double maxHourlyConsumption;
 }

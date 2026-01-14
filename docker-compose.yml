@@ -183,7 +183,7 @@ services:
     networks:
       - app_net
 
-  # 🐇 RabbitMQ Message Broker (New)
+  # 🐇 RabbitMQ Message Broker
   rabbitmq:
     image: rabbitmq:3-management-alpine 
     container_name: rabbitmq
@@ -196,17 +196,32 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest 
 
-  device-simulator:
-    build: ./device-simulator
-    container_name: device-simulator
+  # 🔔 WebSocket Service (NOU)
+  websocket-service:
+    build: ./backend/websocket-service
+    container_name: websocket-service
+    ports:
+      - "8084:8084"
+    expose:
+      - "8084" # Portul intern
     environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - PORT=8084
       - RABBITMQ_HOST=rabbitmq
-      - DEVICE_ID=5 # Set the Device ID this simulator will use
-      - PYTHONUNBUFFERED=1
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+    labels:
+      - "traefik.enable=true"
+      # Rutăm tot ce începe cu /ws către acest serviciu
+      # Atenție: WebSockets necesită uneori configurări speciale, dar Traefik v2/v3 le suportă default
+      - "traefik.http.routers.websocket.rule=PathPrefix(`/ws`)" 
+      - "traefik.http.services.websocket.loadbalancer.server.port=8084"
     depends_on:
       - rabbitmq
     networks:
       - app_net
+
   # 🌐 Frontend
   frontend:
     build: ./frontend

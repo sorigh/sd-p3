@@ -6,12 +6,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
 import com.example.monitoring_service.dtos.MeasurementDTO;
+import com.example.monitoring_service.dtos.NotificationDTO;
 import com.example.monitoring_service.entities.EnergyConsumption;
+import com.example.monitoring_service.entities.MonitoredDevice;
 import com.example.monitoring_service.repositories.EnergyConsumptionRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.monitoring_service.repositories.MonitoredDeviceRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -20,11 +23,18 @@ import lombok.RequiredArgsConstructor;
 public class DeviceDataConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(DeviceDataConsumer.class);
     private final EnergyConsumptionRepository repository;
+    private final MonitoredDeviceRepository monitoredDeviceRepository;
+    private final RabbitTemplate rabbitTemplate; // new for sending notifications
+
     // Key: "deviceId_yyyy-MM-dd-HH" (e.g., "1_2025-11-22-19")
     // Value: Current accumulated consumption for that hour
     private final Map<String, Double> hourlyAccumulator = new ConcurrentHashMap<>();
 
+    private static final String NOTIFICATION_QUEUE = "monitoring_notification_queue";
+
+
     // The primary message consumer, listening to the data queue
+    @RabbitListener(queues = "${monitoring.queue.data}")
     @RabbitListener(queues = "${monitoring.queue.data}")
     public void handleDeviceData(MeasurementDTO measurement) {
         try {
@@ -32,29 +42,18 @@ public class DeviceDataConsumer {
             Double value = measurement.getMeasurement_value();
             LocalDateTime dateTime = measurement.getLocalTimestamp();
             
-            LOGGER.info("Received 10-min reading from Device {}: {} kWh at {}", 
-                    deviceId, value, dateTime.withMinute(0).withSecond(0).withNano(0));
+            LOGGER.info("Received reading for Device {}: {} kWh", deviceId, value);
 
-            // Create the unique hourly aggregation key
-            String hourKey = String.format("%d_%d-%02d-%02d-%02d",
-                    deviceId, 
-                    dateTime.getYear(), 
-                    dateTime.getMonthValue(), 
-                    dateTime.getDayOfMonth(), 
-                    dateTime.getHour());
-
-            // Accumulate the reading
-            Double accumulated = hourlyAccumulator.merge(hourKey, value, Double::sum);
-            
-            LOGGER.debug("Current hourly total for {}: {} kWh", hourKey, accumulated);
-
-            //(Simplified Logic for Demo)
-            if (dateTime.getMinute() >= 50 && accumulated > 0.0) { // check end of hour readings
-                 saveHourlyConsumption(hourKey, accumulated, dateTime);
+            // --- FORȚĂM O ALERTĂ PENTRU TEST ---
+            if (value > 10.0) { // Punem o limită mică, hardcodată
+                LOGGER.warn("⚠️ FORCING ALERT FOR TESTING!");
+                sendOverconsumptionNotification(deviceId, value, 10.0);
             }
+            // -------------------------------------
 
+            // Restul logicii tale cu hourlyAccumulator...
         } catch (Exception e) {
-            LOGGER.error("Error processing message: {}", measurement, e);
+            LOGGER.error("Error: ", e);
         }
     }
     
@@ -84,4 +83,19 @@ public class DeviceDataConsumer {
              LOGGER.warn("Skipping save for {} ({} kWh). Accumulator value mismatch or entry already removed.", hourKey, totalConsumption);
         }
     }
+
+    private void sendOverconsumptionNotification(Long deviceId, Double currentConsumption, Double maxConsumption) {
+        // Poți crea un DTO rapid sau folosi un Map/String JSON
+        String message = String.format("Device %d exceeded limit! Current: %.2f, Max: %.2f", 
+                                       deviceId, currentConsumption, maxConsumption);
+        
+        // Trimitem un obiect simplu (sau un DTO dedicat NotificationDTO)
+        // Recomandat: creează un NotificationDTO { message, deviceId, timestamp }
+        NotificationDTO notification = new NotificationDTO(deviceId, message, LocalDateTime.now());
+
+        // Trimite pe coada pe care o va asculta WebSocket Service
+        rabbitTemplate.convertAndSend(NOTIFICATION_QUEUE, notification);
+        LOGGER.info("Notification sent to queue: {}", message);
+    }
+
 }

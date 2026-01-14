@@ -29,6 +29,7 @@ public class DeviceSyncConsumer {
         MonitoredDevice newDevice = new MonitoredDevice();
         newDevice.setId(event.getDeviceId());
         newDevice.setName(event.getName());
+        newDevice.setMaxHourlyConsumption(event.getMaxHourlyConsumption());
 
         repository.save(newDevice);
         
