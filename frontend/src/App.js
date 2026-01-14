@@ -21,6 +21,9 @@ import 'react-toastify/dist/ReactToastify.css';
 // 3. Importăm componenta invizibilă care ascultă WebSocket-ul
 import WebSocketNotification from './components/WebSocketNotification';
 
+
+import ChatInterface from './components/ChatInterface'; // No curly braces for default exports
+
 function ProtectedRoute({ children, requiredRole }) {
   const { user, loading } = useContext(AuthContext);
 
@@ -89,6 +92,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="ROLE_USER">
               <DeviceConsumptionPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/chat" 
+          element={
+            <ProtectedRoute>
+              <ChatInterface />
             </ProtectedRoute>
           } 
         />

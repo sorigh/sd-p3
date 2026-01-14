@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import { Navbar, Nav, NavItem, NavLink, Button } from "reactstrap";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/authContext"; // adjust path if needed
-
+import { Link } from 'react-router-dom'; // Must have curly braces
 const AppNavbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -73,6 +73,16 @@ const AppNavbar = () => {
             </NavLink>
           </NavItem>
         )}
+        <NavItem>
+          <NavLink
+            tag={Link}
+            to="/chat"
+            active={location.pathname === "/chat"}
+          >
+            Support Chat
+          </NavLink>
+        </NavItem>
+        
 
         <NavItem>
           <Button color="danger" size="sm" onClick={handleLogout}>
