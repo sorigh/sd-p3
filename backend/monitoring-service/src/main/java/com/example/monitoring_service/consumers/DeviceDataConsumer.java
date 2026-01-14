@@ -35,25 +35,53 @@ public class DeviceDataConsumer {
 
     // The primary message consumer, listening to the data queue
     @RabbitListener(queues = "${monitoring.queue.data}")
-    @RabbitListener(queues = "${monitoring.queue.data}")
     public void handleDeviceData(MeasurementDTO measurement) {
         try {
             Long deviceId = measurement.getDevice_id();
             Double value = measurement.getMeasurement_value();
             LocalDateTime dateTime = measurement.getLocalTimestamp();
             
-            LOGGER.info("Received reading for Device {}: {} kWh", deviceId, value);
+            LOGGER.info("Received 10-min reading from Device {}: {} kWh at {}", 
+                    deviceId, value, dateTime.withMinute(0).withSecond(0).withNano(0));
 
-            // --- FORȚĂM O ALERTĂ PENTRU TEST ---
-            if (value > 10.0) { // Punem o limită mică, hardcodată
-                LOGGER.warn("⚠️ FORCING ALERT FOR TESTING!");
-                sendOverconsumptionNotification(deviceId, value, 10.0);
+            // Create the unique hourly aggregation key
+            String hourKey = String.format("%d_%d-%02d-%02d-%02d",
+                    deviceId, 
+                    dateTime.getYear(), 
+                    dateTime.getMonthValue(), 
+                    dateTime.getDayOfMonth(), 
+                    dateTime.getHour());
+
+            // Accumulate the reading
+            Double accumulated = hourlyAccumulator.merge(hourKey, value, Double::sum);
+            
+            MonitoredDevice device = monitoredDeviceRepository.findById(deviceId).orElse(null);
+
+            
+            if (device != null && device.getMaxHourlyConsumption() != null) {
+                // 2. Verifică depășirea
+                if (accumulated > device.getMaxHourlyConsumption()) {
+                    LOGGER.warn("⚠️ ALERT: Device {} exceeded limit! Current: {}, Max: {}", 
+                                deviceId, accumulated, device.getMaxHourlyConsumption());
+                    
+                    // 3. AICI trebuie să trimiți notificarea către WebSocket Service
+                    sendOverconsumptionNotification(deviceId, accumulated, device.getMaxHourlyConsumption());
+                } else {
+                    LOGGER.info("ℹ️ INFO: Consumul {} e sub limita {}", accumulated, device.getMaxHourlyConsumption());
+                }
+            } else {             
+                LOGGER.error("❌ ERROR: Device {} nu a fost gasit sau nu are limita setata in DB de Monitoring!", deviceId);
             }
-            // -------------------------------------
 
-            // Restul logicii tale cu hourlyAccumulator...
+            LOGGER.debug("Current hourly total for {}: {} kWh", hourKey, accumulated);
+
+            //(Simplified Logic for Demo)
+            if (dateTime.getMinute() >= 50 && accumulated > 0.0) { // check end of hour readings
+                 saveHourlyConsumption(hourKey, accumulated, dateTime);
+            }
+
         } catch (Exception e) {
-            LOGGER.error("Error: ", e);
+            LOGGER.error("Error processing message: {}", measurement, e);
         }
     }
     
