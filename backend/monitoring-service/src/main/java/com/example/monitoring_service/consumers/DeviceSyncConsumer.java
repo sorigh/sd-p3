@@ -47,4 +47,6 @@ public class DeviceSyncConsumer {
             LOGGER.warn("⚠️ Device with ID {} not found in Monitoring DB, skipping delete.", event.getDeviceId());
         }
     }
+
+    
 }

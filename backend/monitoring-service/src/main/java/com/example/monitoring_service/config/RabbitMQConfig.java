@@ -28,6 +28,7 @@ public class RabbitMQConfig {
     public static final String SYNC_EXCHANGE = "sync_exchange"; 
     public static final String DEVICE_CREATED_KEY = "device.created";
     public static final String DEVICE_CREATED_QUEUE = "monitoring_device_created_queue";
+    
 
     public static final String DEVICE_DELETED_KEY = "device.deleted";
     public static final String DEVICE_DELETED_QUEUE = "monitoring_device_deleted_queue";
