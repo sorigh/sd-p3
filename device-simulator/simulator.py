@@ -5,6 +5,7 @@ import random
 import time
 import os
 from datetime import datetime
+import sys
 
 # --- CONFIGURATION CONSTANTS ---
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
@@ -12,7 +13,7 @@ RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
 QUEUE_NAME = 'device-data-queue' # Must match 'monitoring.queue.data' in Spring
 
 # 🛠️ EDIT THESE VALUES 🛠️
-DEVICE_ID = "1"              # The ID of the device to simulate
+DEVICE_ID = sys.argv[1] if len(sys.argv) > 1 else "1"  # The ID of the device to simulate
 DATE_STRING = "10-01-2026"   # The date for the data (Format: DD-MM-YYYY)
 
 # --- CONSUMPTION LOGIC (Approved by Teacher) ---

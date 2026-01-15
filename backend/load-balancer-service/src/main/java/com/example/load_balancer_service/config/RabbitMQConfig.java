@@ -28,7 +28,7 @@ public class RabbitMQConfig {
     @Bean
     public Declarables ingestQueues() {
         List<Queue> queues = new ArrayList<>();
-        for (int i = 0; i < replicaCount; i++) {
+        for (int i = 1; i <= replicaCount; i++) {
             queues.add(new Queue(queuePrefix + i, true));
         }
         return new Declarables(queues);

@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.example.monitoring_service.dtos.MeasurementDTO;
@@ -26,6 +27,10 @@ public class DeviceDataConsumer {
     private final MonitoredDeviceRepository monitoredDeviceRepository;
     private final RabbitTemplate rabbitTemplate; // new for sending notifications
 
+    // 🚀 ADD THIS LINE TO FIX THE ERROR
+    @Value("${replica.id}")
+    private String replicaId;
+
     // Key: "deviceId_yyyy-MM-dd-HH" (e.g., "1_2025-11-22-19")
     // Value: Current accumulated consumption for that hour
     private final Map<String, Double> hourlyAccumulator = new ConcurrentHashMap<>();
@@ -38,6 +43,7 @@ public class DeviceDataConsumer {
     @RabbitListener(queues = "#{deviceDataQueue.name}")
     public void handleDeviceData(MeasurementDTO measurement) {
         try {
+            LOGGER.info("✅ Replica {} RECEIVED data for Device {}", replicaId, measurement.getDevice().getId());
             Long deviceId = measurement.getDevice_id();
             Double value = measurement.getMeasurement_value();
             LocalDateTime dateTime = measurement.getLocalTimestamp();

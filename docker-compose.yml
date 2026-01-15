@@ -243,8 +243,8 @@ services:
       - RABBITMQ_USER=guest
       - RABBITMQ_PASS=guest
       # Number of monitoring replicas the LB should distribute to
-      - MONITORING_REPLICAS_COUNT=2 
-      - LOADBALANCER_QUEUE_INPUT=device_data_queue
+      - MONITORING_REPLICAS_COUNT=3
+      - LOADBALANCER_QUEUE_INPUT=device-data-queue
     depends_on:
       - rabbitmq
     networks:

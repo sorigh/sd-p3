@@ -23,6 +23,9 @@ public class DeviceDataDispatcher {
 
     @RabbitListener(queues = "${loadbalancer.queue.input}")
     public void dispatch(MeasurementDTO measurement) {
+        System.out.println("📥 LOAD BALANCER RECEIVED: Device " + measurement.getDevice_id() +
+                " value: " + measurement.getMeasurement_value());
+
         try {
             // Requirement 1.2: Replica Selection Logic (Consistent-style hashing)
             // We use the absolute value of the hash to ensure a positive index
