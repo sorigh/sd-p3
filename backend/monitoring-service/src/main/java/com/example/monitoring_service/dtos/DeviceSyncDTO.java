@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 public class DeviceSyncDTO {
     private Long deviceId;
     private String name;
-    @JsonProperty("maximumHourlyEnergyConsumption")
+    @JsonProperty("max_hourly_consumption")
     private Double maxHourlyConsumption;
 }
