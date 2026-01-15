@@ -34,7 +34,8 @@ public class DeviceDataConsumer {
 
 
     // The primary message consumer, listening to the data queue
-    @RabbitListener(queues = "${monitoring.queue.data}")
+    // CHANGED QUEUE NAME for load balancer
+    @RabbitListener(queues = "#{deviceDataQueue.name}")
     public void handleDeviceData(MeasurementDTO measurement) {
         try {
             Long deviceId = measurement.getDevice_id();

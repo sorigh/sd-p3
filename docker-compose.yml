@@ -81,6 +81,7 @@ services:
   # 👥 User Service
   user-service:
     build: ./backend/user-service
+    image: user-service:latest  # <--- for docker stack
     container_name: user-service
     expose:
       - "8080"
@@ -106,6 +107,7 @@ services:
   # 💡 Device Service
   device-service:
     build: ./backend/device-service
+    image: device-service:latest  # <--- for docker stack
     container_name: device-service
     expose:
       - "8081"
@@ -123,9 +125,7 @@ services:
       - RABBITMQ_PASS=guest
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.device.rule=PathPrefix(`/api/device`)"
-      - "traefik.http.services.device.loadbalancer.server.port=8081"
-      - "traefik.http.routers.my-device-service.rule=PathPrefix(`/api/my-devices`)"
+      - "traefik.http.routers.device.rule=PathPrefix(`/api/device`) || PathPrefix(`/api/my-devices`)"
       - "traefik.http.services.device.loadbalancer.server.port=8081"
     networks:
       - app_net
@@ -136,6 +136,7 @@ services:
   # 🔐 Auth Service
   auth-service:
     build: ./backend/auth-service
+    image: auth-service:latest  # <--- for docker stack
     container_name: auth-service
     expose:
       - "8083"
@@ -157,6 +158,7 @@ services:
   # 📊 Monitoring Service:
   monitoring-service:
     build: ./backend/monitoring-service
+    image: monitoring-service:latest  # <--- for docker stack
     container_name: monitoring-service
     expose:
       - "8082"
@@ -173,6 +175,7 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=guest
       - RABBITMQ_PASS=guest
+      - INSTANCE_ID={{.Task.Slot}}
     labels:
       - "traefik.enable=true" # <--- Schimbat la TRUE
       - "traefik.http.routers.monitoring.rule=PathPrefix(`/api/monitoring`)"
@@ -199,6 +202,7 @@ services:
   # 🔔 WebSocket Service (NOU)
   websocket-service:
     build: ./backend/websocket-service
+    image: websocket-service:latest  # <--- for docker stack
     container_name: websocket-service
     ports:
       - "8084:8084"
@@ -225,9 +229,31 @@ services:
     networks:
       - app_net
 
+  # ⚖️ Load Balancing Service
+  load-balancer-service:
+    build: ./backend/load-balancer-service
+    image: load-balancer-service:latest  # <--- for docker stack
+    container_name: load-balancer-service
+    expose:
+      - "8085"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+      # Number of monitoring replicas the LB should distribute to
+      - MONITORING_REPLICAS_COUNT=2 
+      - LOADBALANCER_QUEUE_INPUT=device_data_queue
+    depends_on:
+      - rabbitmq
+    networks:
+      - app_net
+
   # 🌐 Frontend
   frontend:
     build: ./frontend
+    image: frontend:latest  # <--- for docker stack
     container_name: frontend
     expose:
       - "3000"
@@ -243,7 +269,8 @@ services:
 # Network Definition
 networks:
   app_net:
-    driver: bridge
+    driver: overlay
+    attachable: true
 
 # Volumes for persistent DB data
 volumes:

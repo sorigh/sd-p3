@@ -3,10 +3,12 @@ import json
 import bisect
 import random
 import time
+import os
 from datetime import datetime
 
 # --- CONFIGURATION CONSTANTS ---
-RABBITMQ_HOST = 'localhost'
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
+
 QUEUE_NAME = 'device-data-queue' # Must match 'monitoring.queue.data' in Spring
 
 # 🛠️ EDIT THESE VALUES 🛠️

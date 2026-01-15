@@ -74,4 +74,7 @@ public class ChatController {
         // Trimitem și către topicul de admini pentru a sincroniza toate ferestrele de dashboard
         messagingTemplate.convertAndSend("/topic/admin/messages", adminMessage);
     }
+
+    
+    
 }

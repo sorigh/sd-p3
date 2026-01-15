@@ -25,6 +25,12 @@ public class RabbitMQConfig {
     @Value("${monitoring.queue.notification}")
     private String notificationQueueName;
 
+    @Value("${monitoring.queue.prefix}")
+    private String queuePrefix;
+
+    @Value("${replica.id}")
+    private String replicaId;
+
     public static final String SYNC_EXCHANGE = "sync_exchange"; 
     public static final String DEVICE_CREATED_KEY = "device.created";
     public static final String DEVICE_CREATED_QUEUE = "monitoring_device_created_queue";
@@ -43,9 +49,11 @@ public class RabbitMQConfig {
     public static final String NOTIFICATION_QUEUE = "monitoring_notification_queue";
 
     // Defines the queue for device data messages
+    // !!!!!!! modified for load balancer
     @Bean
     public Queue deviceDataQueue() {
-        return new Queue(deviceDataQueueName, true); 
+        String uniqueQueueName = queuePrefix + replicaId;
+        return new Queue(uniqueQueueName, true); 
     }
 
     // Defines the queue for synchronization events

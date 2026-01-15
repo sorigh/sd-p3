@@ -1,0 +1,20 @@
+monitoring-service:
+    # Use the image name you built locally
+    image: monitoring-service:latest 
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_IP=postgres-monitoring
+      - DB_PORT=5432
+      - DB_DBNAME=monitoring_db
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - RABBITMQ_HOST=rabbitmq
+      # This tells the Java code which queue to listen to (1, 2, or 3)
+      - INSTANCE_ID={{.Task.Slot}} 
+    deploy:
+      mode: replicated
+      replicas: 3  # Starts three separate containers
+      restart_policy:
+        condition: on-failure
+    networks:
+      - app_net
