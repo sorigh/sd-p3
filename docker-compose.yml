@@ -211,6 +211,9 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=guest
       - RABBITMQ_PASS=guest
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_API_URL=${LLM_API_URL}
+      - LLM_MODEL=${LLM_MODEL}
     labels:
       - "traefik.enable=true"
       # Rutăm tot ce începe cu /ws către acest serviciu
