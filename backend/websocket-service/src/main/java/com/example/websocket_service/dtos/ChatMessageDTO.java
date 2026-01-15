@@ -12,4 +12,6 @@ public class ChatMessageDTO {
     private String timestamp;   // Optional, for UI display
     @JsonProperty("isBot")
     private boolean isBot;      // To distinguish between user and bot responses in the UI
+    @JsonProperty("isAdmin")
+    private boolean isAdmin;
 }

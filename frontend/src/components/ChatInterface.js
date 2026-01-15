@@ -47,7 +47,8 @@ const ChatInterface = () => {
             content: input,
             // USE toISOString() so new Date() can parse it later
             timestamp: new Date().toISOString(), 
-            isBot: false
+            isBot: false,
+            isAdmin: false
         };
 
         stompClient.send("/app/chat", {}, JSON.stringify(chatMessage));
@@ -63,14 +64,18 @@ const ChatInterface = () => {
                 <Card.Header>Customer Support Chat</Card.Header>
                 <Card.Body ref={scrollRef} style={{ height: '400px', overflowY: 'auto' }}>
                     {messages.map((msg, index) => {
-                        // Safely parse the date
                         const dateObj = new Date(msg.timestamp);
                         const timeStr = isNaN(dateObj.getTime()) ? msg.timestamp : dateObj.toLocaleTimeString();
 
+                        // Determinăm dacă mesajul vine de la sistem (Bot sau Admin)
+                        const isAssistant = msg.isBot || msg.isAdmin;
+
                         return (
-                            <div key={index} className={`d-flex mb-2 ${msg.isBot ? 'justify-content-start' : 'justify-content-end'}`}>
-                                <div className={`p-2 rounded ${msg.isBot ? 'bg-light text-dark' : 'bg-primary text-white'}`} style={{ maxWidth: '70%' }}>
-                                    <strong>{msg.isBot ? "Support Bot" : "You"}: </strong>
+                            <div key={index} className={`d-flex mb-2 ${isAssistant ? 'justify-content-start' : 'justify-content-end'}`}>
+                                <div className={`p-2 rounded ${isAssistant ? 'bg-light text-dark' : 'bg-primary text-white'}`} style={{ maxWidth: '70%' }}>
+                                    <strong>
+                                        {msg.isBot ? "Support Bot" : (msg.isAdmin ? "Admin Support" : "You")}
+                                    </strong>: 
                                     {msg.content}
                                     <div style={{ fontSize: '0.7rem', opacity: 0.8 }}>{timeStr}</div>
                                 </div>

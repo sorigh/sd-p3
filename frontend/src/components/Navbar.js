@@ -73,6 +73,7 @@ const AppNavbar = () => {
             </NavLink>
           </NavItem>
         )}
+        {user && user.role === 'ROLE_USER' && (
         <NavItem>
           <NavLink
             tag={Link}
@@ -82,6 +83,19 @@ const AppNavbar = () => {
             Support Chat
           </NavLink>
         </NavItem>
+        )}
+
+        {user && user.role === 'ROLE_ADMIN' && (
+          <NavItem>
+            <NavLink
+              tag={Link}
+              to="/admin/chat"
+              active={location.pathname === "/admin/chat"}
+            >
+              Chat Support
+            </NavLink>
+          </NavItem>
+        )}
         
 
         <NavItem>
@@ -89,6 +103,7 @@ const AppNavbar = () => {
             Logout
           </Button>
         </NavItem>
+        
       </Nav>
     </Navbar>
   );

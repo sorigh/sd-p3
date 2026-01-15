@@ -24,6 +24,8 @@ import WebSocketNotification from './components/WebSocketNotification';
 
 import ChatInterface from './components/ChatInterface'; // No curly braces for default exports
 
+import AdminChatDashboard from "./components/AdminChatDashboard";
+
 function ProtectedRoute({ children, requiredRole }) {
   const { user, loading } = useContext(AuthContext);
 
@@ -102,6 +104,14 @@ function App() {
               <ChatInterface />
             </ProtectedRoute>
           } 
+        />
+        <Route 
+          path="/admin/chat" 
+          element={
+              <ProtectedRoute>
+                    <AdminChatDashboard />
+                </ProtectedRoute>
+            } 
         />
         
 
